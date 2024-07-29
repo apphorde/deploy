@@ -65,8 +65,8 @@ createServer(async function (request, response) {
     return notFound(response);
   }
 
-  const subdomain = String(request.headers["x-forwarded-for"]).split(".");
-  if (!existsSync(join(workingDir, subdomain))) {
+  const subdomain = String(request.headers["x-forwarded-for"]).split(".")[0] || '';
+  if (!subdomain || !existsSync(join(workingDir, subdomain))) {
     return notFound(response);
   }
 
