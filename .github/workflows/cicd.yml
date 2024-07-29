@@ -1,0 +1,13 @@
+on:
+  - push
+
+concurrency:
+  group: ${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    uses: cloud-cli/workflows/.github/workflows/docker-ghcr-build.yml@main
+    with:
+      baseImage: cloud-cli/node:latest
+      type: node
