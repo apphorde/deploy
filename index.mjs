@@ -58,8 +58,11 @@ createServer(async function (request, response) {
         .writeHead(400)
         .end(`{"status": "error", "error": ${JSON.stringify(String(error))}}`);
     } finally {
-      if (existsSync(file)) await rm(file);
+      if (file && existsSync(file)) {
+        await rm(file);
+      }
     }
+    return;
   }
 
   if (["OPTIONS", "GET"].includes(request.method) === false) {
