@@ -70,13 +70,16 @@ createServer(async function (request, response) {
   }
 
   const subdomain =
-    String(request.headers["x-forwarded-for"]).split(".")[0] || "";
+    String(request.headers["x-forwarded-for"])
+      .replace(baseDomain, "")
+      .split(".")[0] || "";
+
   if (!subdomain || !existsSync(join(workingDir, subdomain))) {
     return notFound(response);
   }
 
   const path = resolve(request.url);
-  const file = join(workingDir, subdomain, path);
+  file = join(workingDir, subdomain, path);
 
   if (!existsSync(file)) {
     return notFound(response);
@@ -87,6 +90,7 @@ createServer(async function (request, response) {
   response.setHeader("Access-Control-Allow-Origin", "*");
   response.setHeader("Content-Type", mimeTypes[extension] || "text/plain");
 
+  console.log(file);
   createReadStream(file).pipe(response);
 });
 
