@@ -18,6 +18,7 @@ const mimeTypes = {
 createServer(async function (request, response) {
   if (request.method === "POST" && request.url === "/:deploy") {
     if (request.headers.authorization !== authKey) {
+      console.log("unauthorized key", request.headers.authorization);
       response.writeHead(400).end("");
       return;
     }
@@ -47,15 +48,13 @@ createServer(async function (request, response) {
         throw new Error("Failed to extract files: " + sh.error);
       }
 
-      response.writeHead(201);
-      response.end(
-        `{"status": "success", "url": "https://${hash}.${baseDomain}"}`
-      );
+      response
+        .writeHead(201)
+        .end(`{"status": "success", "url": "https://${hash}.${baseDomain}"}`);
     } catch (error) {
-      response.writeHead(400);
-      response.end(
-        `{"status": "error", "error": ${JSON.stringify(String(error))}}`
-      );
+      response
+        .writeHead(400)
+        .end(`{"status": "error", "error": ${JSON.stringify(String(error))}}`);
     } finally {
       if (existsSync(file)) await rm(file);
     }
@@ -65,7 +64,8 @@ createServer(async function (request, response) {
     return notFound(response);
   }
 
-  const subdomain = String(request.headers["x-forwarded-for"]).split(".")[0] || '';
+  const subdomain =
+    String(request.headers["x-forwarded-for"]).split(".")[0] || "";
   if (!subdomain || !existsSync(join(workingDir, subdomain))) {
     return notFound(response);
   }
@@ -90,7 +90,7 @@ function notFound(response) {
 }
 
 function readStream(stream) {
-  new Promise((r, s) => {
+  return new Promise((r, s) => {
     const all = [];
     stream.on("data", (c) => all.push(c));
     stream.on("end", () => r(Buffer.concat(all)));
