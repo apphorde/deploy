@@ -54,6 +54,8 @@ async function onFetch(request, response) {
   const path = resolve(url.pathname === "/" ? "index.html" : url.pathname);
   const file = join(workingDir, subdomain, path);
 
+  console.log(file);
+
   if (!existsSync(file)) {
     return notFound(response);
   }
@@ -64,7 +66,6 @@ async function onFetch(request, response) {
   response.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS, POST");
   response.setHeader("Content-Type", mimeTypes[extension] || "text/plain");
 
-  console.log(file);
   createReadStream(file).pipe(response);
 }
 
