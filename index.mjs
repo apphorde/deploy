@@ -51,7 +51,7 @@ async function onFetch(request, response) {
     return notFound(response);
   }
 
-  const path = resolve(url.pathname === "/" ? "index.html" : url.pathname);
+  const path = url.pathname === "/" ? "/index.html" : resolve(url.pathname);
   const file = join(workingDir, subdomain, path);
 
   console.log(file);
