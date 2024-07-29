@@ -100,16 +100,23 @@ async function onDeploy(request, response) {
     }
 
     const manifest = join(dir, "package.json");
+    let alias = "";
+
     if (existsSync(manifest)) {
       const json = JSON.parse(await readFile(manifest));
       if (json.name) {
         await writeFile(join(workingDir, json.name + ".alias"), hash, "utf-8");
+        alias = json.name;
       }
     }
 
-    response
-      .writeHead(201)
-      .end(`{"status": "success", "url": "https://${hash}.${baseDomain}"}`);
+    response.writeHead(201).end(
+      JSON.stringify({
+        status: "success",
+        url: `https://${hash}.${baseDomain}`,
+        alias: alias ? `https://${alias}.${baseDomain}` : undefined,
+      })
+    );
   } catch (error) {
     response
       .writeHead(400)
