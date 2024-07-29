@@ -23,6 +23,8 @@ createServer(async function (request, response) {
       return;
     }
 
+    let file;
+
     try {
       const buffer = await readStream(request);
       const hash = createHash("sha256")
@@ -31,7 +33,7 @@ createServer(async function (request, response) {
         .slice(0, 8);
 
       const dir = join(workingDir, hash);
-      const file = join(workingDir, hash + ".tgz");
+      file = join(workingDir, hash + ".tgz");
 
       await writeFile(file, buffer);
       await mkdir(dir, { recursive: true });
