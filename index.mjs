@@ -1,4 +1,4 @@
-import createServer from "@cloud-cli/http-server";
+import createServer from "@cloud-cli/http";
 import { mkdir, rm, writeFile } from "fs/promises";
 import { spawnSync } from "child_process";
 import { createHash } from "crypto";
