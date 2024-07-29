@@ -1,4 +1,4 @@
-import { createServer } from "http";
+import createServer from "@cloud-cli/http-server";
 import { mkdir, rm, writeFile } from "fs/promises";
 import { spawnSync } from "child_process";
 import { createHash } from "crypto";
@@ -44,8 +44,7 @@ createServer(async function (request, response) {
       ]);
 
       if (sh.status) {
-        response.writeHead(400).end("");
-        return;
+        throw new Error("Failed to extract files: " + sh.error);
       }
 
       response.writeHead(201);

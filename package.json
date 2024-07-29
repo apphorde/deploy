@@ -1,5 +1,8 @@
 {
   "type": "module",
   "main": "./index.mjs",
-  "scripts": { "ci": "echo true" }
+  "scripts": { "ci": "npm i" },
+  "dependencies": {
+    "@cloud-cli/http-server": "latest"
+  }
 }
