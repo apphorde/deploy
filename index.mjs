@@ -33,28 +33,30 @@ function notFound(response) {
 
 async function onFetch(request, response) {
   const url = new URL(request.url, "http://localhost");
-  let subdomain =
-    String(request.headers["x-forwarded-for"])
-      .replace(baseDomain, "")
-      .split(".")[0] || "";
+  const host = request.headers["x-forwarded-for"];
 
-  if (!subdomain) {
+  let folder =
+    host === baseDomain
+      ? "."
+      : String(host).replace(baseDomain, "").split(".")[0] || "";
+
+  if (!folder) {
     return notFound(response);
   }
 
-  const aliasFile = join(workingDir, subdomain + ".alias");
-  if (!existsSync(join(workingDir, subdomain)) && existsSync(aliasFile)) {
-    subdomain = (await readFile(aliasFile, "utf-8")).trim();
-  }
+  if (folder !== ".") {
+    const aliasFile = join(workingDir, folder + ".alias");
+    if (!existsSync(join(workingDir, folder)) && existsSync(aliasFile)) {
+      folder = (await readFile(aliasFile, "utf-8")).trim();
+    }
 
-  if (!existsSync(join(workingDir, subdomain))) {
-    return notFound(response);
+    if (!existsSync(join(workingDir, folder))) {
+      return notFound(response);
+    }
   }
 
   const path = url.pathname === "/" ? "/index.html" : resolve(url.pathname);
-  const file = join(workingDir, subdomain, path);
-
-  console.log(file);
+  const file = join(workingDir, folder, path);
 
   if (!existsSync(file)) {
     return notFound(response);
