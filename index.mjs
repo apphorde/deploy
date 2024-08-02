@@ -114,7 +114,7 @@ async function onDeploy(request, response) {
 
       if (json.name) {
         const aliasFile = join(workingDir, json.name + ".alias");
-        previousDir = existsSync(aliasFile) && readFile(aliasFile, 'utf-8') || '';
+        previousDir = existsSync(aliasFile) && await readFile(aliasFile, 'utf-8') || '';
         await writeFile(aliasFile, hash, "utf-8");
         alias = json.name;
       }
