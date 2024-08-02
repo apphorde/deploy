@@ -63,10 +63,10 @@ async function onFetch(request, response) {
   }
 
   const extension = path.split(".").pop();
-  if (!url.searchParams.has('nocache')) {
+  if (!url.searchParams.has("nocache")) {
     response.setHeader("Cache-Control", "max-age=86400");
   }
-  
+
   response.setHeader("Access-Control-Allow-Origin", "*");
   response.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS, POST");
   response.setHeader("Content-Type", mimeTypes[extension] || "text/plain");
@@ -84,7 +84,7 @@ async function onDeploy(request, response) {
   let file;
 
   try {
-    const buffer = await readStream(request);
+    const buffer = Buffer.concat(await request.toArray());
     const hash = createHash("sha256").update(buffer).digest("hex").slice(0, 8);
 
     const dir = join(workingDir, hash);
@@ -107,13 +107,21 @@ async function onDeploy(request, response) {
 
     const manifest = join(dir, "package.json");
     let alias = "";
+    let previousDir = "";
 
     if (existsSync(manifest)) {
       const json = JSON.parse(await readFile(manifest));
+
       if (json.name) {
-        await writeFile(join(workingDir, json.name + ".alias"), hash, "utf-8");
+        const aliasFile = join(workingDir, json.name + ".alias");
+        previousDir = existsSync(aliasFile) && readFile(aliasFile, 'utf-8') || '';
+        await writeFile(aliasFile, hash, "utf-8");
         alias = json.name;
       }
+    }
+
+    if (previousDir) {
+      await rm(join(workingDir, previousDir), { recursive: true, force: true });
     }
 
     response.writeHead(201).end(
@@ -132,13 +140,4 @@ async function onDeploy(request, response) {
       await rm(file);
     }
   }
-}
-
-function readStream(stream) {
-  return new Promise((r, s) => {
-    const all = [];
-    stream.on("data", (c) => all.push(c));
-    stream.on("end", () => r(Buffer.concat(all)));
-    stream.on("error", s);
-  });
 }
