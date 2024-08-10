@@ -23,7 +23,7 @@ createServer(async function (request, response) {
       return onDeploy(request, response);
     }
 
-    if (request.method === "BACKUP") {
+    if (request.method === "COPY") {
       return onBackup(request, response);
     }
 
