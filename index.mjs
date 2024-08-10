@@ -32,7 +32,9 @@ createServer(async function (request, response) {
     onFetch(request, response);
   } catch (e) {
     console.log(e);
-    response.writeHead(500).end();
+    if (!response.headersSent) {
+      response.writeHead(500).end();
+    }
   }
 });
 
@@ -91,13 +93,11 @@ async function onBackup(request, response) {
 
   const aliasFile = join(workingDir, name + ".alias");
   if (existsSync(aliasFile) && statSync(aliasFile).isFile()) {
-    console.log('Using alias from ' + aliasFile);
     name = await readFile(aliasFile, "utf8");
   }
 
   const dir = join(workingDir, name);
-  console.log(`Trying ${dir} for ${name}`);
-  if (!existsSync(dir) || !statSync(file).isDirectory()) {
+  if (!existsSync(dir) || !statSync(dir).isDirectory()) {
     notFound(response);
     return;
   }
