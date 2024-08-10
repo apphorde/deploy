@@ -77,7 +77,7 @@ async function onFetch(request, response) {
 async function onBackup(request, response) {
   if (request.headers.authorization !== authKey) {
     console.log("unauthorized key", request.headers.authorization);
-    badRequest(response);
+    badRequest(response, "Unauthorized");
     return;
   }
 
@@ -86,6 +86,7 @@ async function onBackup(request, response) {
 
   const aliasFile = join(workingDir, name + ".alias");
 
+  // TODO check if is file
   if (existsSync(aliasFile)) {
     name = await readFile(aliasFile, "utf8");
   }
@@ -100,7 +101,9 @@ async function onBackup(request, response) {
   const sh = spawnSync("tar", ["czf", "-", dir]);
 
   if (sh.status) {
-    badRequest(response, String(error));
+    console.log(sh.stderr);
+    console.log(sh.output);
+    badRequest(response, "Failed to generate file");
     return;
   }
 
@@ -109,7 +112,8 @@ async function onBackup(request, response) {
     "Content-Disposition",
     `attachment; filename="${name}.tgz"`
   );
-  sh.stdout.pipe(response);
+
+  response.end(sh.stdout);
 }
 
 async function onDeploy(request, response) {
