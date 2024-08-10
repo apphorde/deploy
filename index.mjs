@@ -2,7 +2,7 @@ import createServer from "@cloud-cli/http";
 import { mkdir, readFile, rm, writeFile } from "fs/promises";
 import { spawnSync } from "child_process";
 import { createHash } from "crypto";
-import { join, resolve } from "path";
+import { join, resolve, basename } from "path";
 import { createReadStream, existsSync, statSync } from "fs";
 
 const authKey = process.env.API_KEY;
@@ -87,7 +87,7 @@ async function onBackup(request, response) {
   }
 
   const url = new URL(request.url, "http://localhost");
-  let name = resolve(url.pathname.slice(1));
+  let name = basename(resolve(url.pathname.slice(1)));
 
   const aliasFile = join(workingDir, name + ".alias");
   if (existsSync(aliasFile) && statSync(aliasFile).isFile()) {
@@ -96,7 +96,7 @@ async function onBackup(request, response) {
   }
 
   const dir = join(workingDir, name);
-  console.log('Trying ' + dir);
+  console.log(`Trying ${dir} for ${name}`);
   if (!existsSync(dir) || !statSync(file).isDirectory()) {
     notFound(response);
     return;
