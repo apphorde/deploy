@@ -85,13 +85,12 @@ async function onBackup(request, response) {
   let name = resolve(url.pathname.slice(1));
 
   const aliasFile = join(workingDir, name + ".alias");
-
   if (existsSync(aliasFile) && statSync(aliasFile).isFile()) {
     name = await readFile(aliasFile, "utf8");
   }
 
   const dir = join(workingDir, name);
-  if (!existsSync(dir) && !statSync(file).isDirectory()) {
+  if (!existsSync(dir) || !statSync(file).isDirectory()) {
     notFound(response);
     return;
   }
