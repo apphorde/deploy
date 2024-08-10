@@ -102,10 +102,12 @@ async function onBackup(request, response) {
     return;
   }
 
-  const sh = spawnSync("tar", ["czf", "-C", workingDir, "-", dir]);
+  const sh = spawnSync("tar", ["c", "-z", "-f", "-", "-C", workingDir, dir]);
   if (sh.status) {
-    console.log(sh.stderr);
-    console.log(sh.output);
+    const [_, stdout, stderr] = sh.output;
+    console.log(stdout.toString("utf-8"));
+    console.log(stderr.toString("utf-8"));
+
     badRequest(response, "Failed to generate file");
     return;
   }
