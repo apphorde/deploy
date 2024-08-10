@@ -102,7 +102,7 @@ async function onBackup(request, response) {
     return;
   }
 
-  const sh = spawnSync("tar", ["c", "-z", "-f", "-", "-C", workingDir, dir]);
+  const sh = spawnSync("tar", ["c", "-z", "-C", dir, "-f", "-", '.']);
   if (sh.status) {
     const [_, stdout, stderr] = sh.output;
     console.log(stdout.toString("utf-8"));
