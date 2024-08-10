@@ -26,6 +26,7 @@ createServer(async function (request, response) {
     }
 
     if (["OPTIONS", "GET"].includes(request.method) === false) {
+      console.log(`[404] ${request.method} ${request.url}`);
       return notFound(response);
     }
 
