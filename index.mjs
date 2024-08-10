@@ -88,7 +88,7 @@ async function onBackup(request, response) {
     return;
   }
 
-  const url = new URL(request.url);
+  const url = new URL(request.url, "http://localhost");
   let name = resolve(url.pathname.slice(1));
 
   const aliasFile = join(workingDir, name + ".alias");
