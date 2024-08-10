@@ -16,8 +16,6 @@ const mimeTypes = {
 };
 
 createServer(async function (request, response) {
-  console.log(`${request.method} ${request.url}`);
-
   try {
     if (request.method === "POST" && request.url === "/:deploy") {
       return onDeploy(request, response);
@@ -93,10 +91,12 @@ async function onBackup(request, response) {
 
   const aliasFile = join(workingDir, name + ".alias");
   if (existsSync(aliasFile) && statSync(aliasFile).isFile()) {
+    console.log('Using alias from ' + aliasFile);
     name = await readFile(aliasFile, "utf8");
   }
 
   const dir = join(workingDir, name);
+  console.log('Trying ' + dir);
   if (!existsSync(dir) || !statSync(file).isDirectory()) {
     notFound(response);
     return;
