@@ -3,7 +3,7 @@ import { mkdir, readFile, rm, writeFile } from "fs/promises";
 import { spawnSync } from "child_process";
 import { createHash } from "crypto";
 import { join, resolve } from "path";
-import { createReadStream, existsSync } from "fs";
+import { createReadStream, existsSync, statSync } from "fs";
 
 const authKey = process.env.API_KEY;
 const baseDomain = process.env.BASE_DOMAIN;
@@ -58,7 +58,7 @@ async function onFetch(request, response) {
   const path = url.pathname === "/" ? "/index.html" : resolve(url.pathname);
   const file = join(workingDir, folder, path);
 
-  if (!existsSync(file)) {
+  if (!existsSync(file) || !statSync(file).isFile()) {
     return notFound(response);
   }
 
@@ -86,14 +86,12 @@ async function onBackup(request, response) {
 
   const aliasFile = join(workingDir, name + ".alias");
 
-  // TODO check if is file
-  if (existsSync(aliasFile)) {
+  if (existsSync(aliasFile) && statSync(aliasFile).isFile()) {
     name = await readFile(aliasFile, "utf8");
   }
 
   const dir = join(workingDir, name);
-
-  if (!existsSync(dir)) {
+  if (!existsSync(dir) && !statSync(file).isDirectory()) {
     notFound(response);
     return;
   }
