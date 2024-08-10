@@ -20,16 +20,16 @@ createServer(async function (request, response) {
     return onDeploy(request, response);
   }
 
+  if (request.method === "BACKUP") {
+    return onBackup(request, response);
+  }
+
   if (["OPTIONS", "GET"].includes(request.method) === false) {
     return notFound(response);
   }
 
   onFetch(request, response);
 });
-
-function notFound(response) {
-  response.writeHead(404).end("Not found");
-}
 
 async function onFetch(request, response) {
   const url = new URL(request.url, "http://localhost");
@@ -74,10 +74,48 @@ async function onFetch(request, response) {
   createReadStream(file).pipe(response);
 }
 
+async function onBackup(request, response) {
+  if (request.headers.authorization !== authKey) {
+    console.log("unauthorized key", request.headers.authorization);
+    badRequest(response);
+    return;
+  }
+
+  const url = new URL(request.url);
+  let name = resolve(url.pathname.slice(1));
+
+  const aliasFile = join(workingDir, name + ".alias");
+
+  if (existsSync(aliasFile)) {
+    name = await readFile(aliasFile, "utf8");
+  }
+
+  const dir = join(workingDir, name);
+
+  if (!existsSync(dir)) {
+    notFound(response);
+    return;
+  }
+
+  const sh = spawnSync("tar", ["czf", "-", dir]);
+
+  if (sh.status) {
+    badRequest(response, String(error));
+    return;
+  }
+
+  response.setHeader("Content-Type", "application/x-gzip");
+  response.setHeader(
+    "Content-Disposition",
+    `attachment; filename="${name}.tgz"`
+  );
+  sh.stdout.pipe(response);
+}
+
 async function onDeploy(request, response) {
   if (request.headers.authorization !== authKey) {
     console.log("unauthorized key", request.headers.authorization);
-    response.writeHead(400).end("");
+    badRequest(response);
     return;
   }
 
@@ -114,7 +152,8 @@ async function onDeploy(request, response) {
 
       if (json.name) {
         const aliasFile = join(workingDir, json.name + ".alias");
-        previousDir = existsSync(aliasFile) && await readFile(aliasFile, 'utf-8') || '';
+        previousDir =
+          (existsSync(aliasFile) && (await readFile(aliasFile, "utf-8"))) || "";
         await writeFile(aliasFile, hash, "utf-8");
         alias = json.name;
       }
@@ -140,4 +179,12 @@ async function onDeploy(request, response) {
       await rm(file);
     }
   }
+}
+
+function notFound(response) {
+  response.writeHead(404).end("Not found");
+}
+
+function badRequest(response, reason = "") {
+  response.writeHead(400).end(reason);
 }
