@@ -16,19 +16,24 @@ const mimeTypes = {
 };
 
 createServer(async function (request, response) {
-  if (request.method === "POST" && request.url === "/:deploy") {
-    return onDeploy(request, response);
-  }
+  try {
+    if (request.method === "POST" && request.url === "/:deploy") {
+      return onDeploy(request, response);
+    }
 
-  if (request.method === "BACKUP") {
-    return onBackup(request, response);
-  }
+    if (request.method === "BACKUP") {
+      return onBackup(request, response);
+    }
 
-  if (["OPTIONS", "GET"].includes(request.method) === false) {
-    return notFound(response);
-  }
+    if (["OPTIONS", "GET"].includes(request.method) === false) {
+      return notFound(response);
+    }
 
-  onFetch(request, response);
+    onFetch(request, response);
+  } catch (e) {
+    console.log(e);
+    response.writeHead(500).end();
+  }
 });
 
 async function onFetch(request, response) {
