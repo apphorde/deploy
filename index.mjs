@@ -17,7 +17,7 @@ const mimeTypes = {
 
 createServer(async function (request, response) {
   try {
-    if (request.method === "POST" && request.url === "/:deploy") {
+    if (request.method === "POST") {
       return onDeploy(request, response);
     }
 
