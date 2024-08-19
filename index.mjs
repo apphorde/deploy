@@ -2,7 +2,7 @@ import createServer from "@cloud-cli/http";
 import { mkdir, readFile, rm, writeFile } from "fs/promises";
 import { spawnSync } from "child_process";
 import { createHash } from "crypto";
-import { join, resolve, basename } from "path";
+import path, { join, resolve, basename } from "path";
 import { createReadStream, existsSync, statSync } from "fs";
 
 const authKey = process.env.API_KEY;
@@ -39,35 +39,13 @@ createServer(async function (request, response) {
 });
 
 async function onFetch(request, response) {
-  const url = new URL(request.url, "http://localhost");
+  const url = new URL(
+    request.url,
+    "http://" + request.headers["x-forwarded-for"]
+  );
+
   const host = request.headers["x-forwarded-for"];
-
-  let folder =
-    host === baseDomain
-      ? "."
-      : String(host).replace(baseDomain, "").split(".")[0] || "";
-
-  if (!folder) {
-    return notFound(response);
-  }
-
-  if (folder.startsWith('--')) {
-    folder = folder.replace('--', '@');
-  }
-
-  if (folder !== ".") {
-    const aliasFile = join(workingDir, folder + ".alias");
-    if (!existsSync(join(workingDir, folder)) && existsSync(aliasFile)) {
-      folder = (await readFile(aliasFile, "utf-8")).trim();
-    }
-
-    if (!existsSync(join(workingDir, folder))) {
-      return notFound(response);
-    }
-  }
-
-  let candidates = url.pathname === "/" ? ["/index.html", "/index.mjs"] : [resolve(url.pathname)];
-  const file = candidates.map(c => join(workingDir, folder, c)).find(f => existsSync(f) && statSync(f).isFile());
+  const file = await resolveFile(url);
 
   if (!file) {
     return notFound(response);
@@ -83,6 +61,54 @@ async function onFetch(request, response) {
   response.setHeader("Content-Type", mimeTypes[extension] || "text/plain");
 
   createReadStream(file).pipe(response);
+}
+
+async function resolveFile(url) {
+  const { hostname, pathname } = url;
+
+  let folder =
+    hostname === baseDomain
+      ? "."
+      : String(hostname).replace(baseDomain, "").split(".")[0] || "";
+
+  if (!folder) {
+    return;
+  }
+
+  if (folder.startsWith("--")) {
+    folder = folder.replace("--", "@");
+  }
+
+  if (folder !== ".") {
+    const aliasFile = join(workingDir, folder + ".alias");
+    if (!existsSync(join(workingDir, folder)) && existsSync(aliasFile)) {
+      folder = (await readFile(aliasFile, "utf-8")).trim();
+    }
+
+    if (!existsSync(join(workingDir, folder))) {
+      return;
+    }
+  }
+
+  /**
+   * /
+   * /foo.css
+   * /foo-bar
+   * /foo-bar@1.0.0.mjs
+   * /foo-bar/index.mjs
+   */
+  let candidates =
+    pathname === "/"
+      ? ["/index.html", "/index.mjs"]
+      : [
+          resolve(pathname),
+          resolve(pathname.replace("@", "/")),
+          resolve(pathname + "/index.mjs"),
+        ];
+
+  return candidates
+    .map((c) => join(workingDir, folder, c))
+    .find((f) => existsSync(f) && statSync(f).isFile());
 }
 
 async function onBackup(request, response) {
@@ -106,7 +132,7 @@ async function onBackup(request, response) {
     return;
   }
 
-  const sh = spawnSync("tar", ["c", "-z", "-C", dir, "-f", "-", '.']);
+  const sh = spawnSync("tar", ["c", "-z", "-C", dir, "-f", "-", "."]);
   if (sh.status) {
     const [_, stdout, stderr] = sh.output;
     console.log(stdout.toString("utf-8"));
