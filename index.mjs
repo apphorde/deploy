@@ -46,9 +46,13 @@ async function onFetch(request, response) {
     host === baseDomain
       ? "."
       : String(host).replace(baseDomain, "").split(".")[0] || "";
-
+  
   if (!folder) {
     return notFound(response);
+  }
+
+  if (folder.startsWith('--')) {
+    folder = folder.replace('--', '@');
   }
 
   if (folder !== ".") {
@@ -62,14 +66,14 @@ async function onFetch(request, response) {
     }
   }
 
-  const path = url.pathname === "/" ? "/index.html" : resolve(url.pathname);
-  const file = join(workingDir, folder, path);
+  let candidates = url.pathname === "/" ? ["/index.html", "/index.mjs"] : [resolve(url.pathname)];
+  const file = candidates.map(c => join(workingDir, folder, c)).find(f => existsSync(file) && statSync(file).isFile());
 
-  if (!existsSync(file) || !statSync(file).isFile()) {
+  if (!file) {
     return notFound(response);
   }
 
-  const extension = path.split(".").pop();
+  const extension = file.split(".").pop();
   if (!url.searchParams.has("nocache")) {
     response.setHeader("Cache-Control", "max-age=86400");
   }
