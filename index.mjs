@@ -46,7 +46,7 @@ async function onFetch(request, response) {
     host === baseDomain
       ? "."
       : String(host).replace(baseDomain, "").split(".")[0] || "";
-  
+
   if (!folder) {
     return notFound(response);
   }
@@ -67,7 +67,7 @@ async function onFetch(request, response) {
   }
 
   let candidates = url.pathname === "/" ? ["/index.html", "/index.mjs"] : [resolve(url.pathname)];
-  const file = candidates.map(c => join(workingDir, folder, c)).find(f => existsSync(file) && statSync(file).isFile());
+  const file = candidates.map(c => join(workingDir, folder, c)).find(f => existsSync(f) && statSync(f).isFile());
 
   if (!file) {
     return notFound(response);
