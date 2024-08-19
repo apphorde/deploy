@@ -104,6 +104,7 @@ async function resolveFile(url) {
           resolve(pathname),
           resolve(pathname.replace("@", "/")),
           resolve(pathname + "/index.mjs"),
+          resolve(pathname + "/latest.mjs"),
         ];
 
   return candidates
