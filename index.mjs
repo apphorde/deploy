@@ -303,7 +303,8 @@ async function generateManifest(scope, name, host) {
   const packageName = `${scope}/${name}`;
   const files = (await readdir(folder, { withFileTypes: true }))
     .filter((f) => f.isFile())
-    .map((f) => parse(f.name).name);
+    .map((f) => parse(f.name).name)
+    .filter((f) => f !== "latest");
 
   return {
     name: packageName,
