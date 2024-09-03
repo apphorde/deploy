@@ -49,8 +49,7 @@ async function onFetchNpm(request, response) {
   );
 
   // [@foo, bar, ?0.1.0.tgz]
-  const [scope, name, version] = parts;
-  console.log("npm", scope, name, version);
+  const [scope, name, requestedVersion] = parts;
 
   if (!validateScope(scope) && validatePackageName(name)) {
     return notFound(response);
@@ -59,7 +58,7 @@ async function onFetchNpm(request, response) {
   response.setHeader("access-control-allow-origin", "*");
   response.setHeader("access-control-expose-headers", "*");
 
-  if (!version) {
+  if (!requestedVersion) {
     const manifest = await generateManifest(scope, name, host);
 
     if (!manifest) {
@@ -73,8 +72,9 @@ async function onFetchNpm(request, response) {
   }
 
   // [wd]/@foo/bar/0.1.0.mjs
+  const version = parse(requestedVersion).name;
   const folder = join(workingDir, scope, name);
-  const file = join(folder, parse(version).name + ".mjs");
+  const file = join(folder, version + ".mjs");
 
   if (!existsSync(file)) {
     return notFound(response);
