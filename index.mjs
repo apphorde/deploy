@@ -1,11 +1,9 @@
 import createServer from "@cloud-cli/http";
-import { mkdir, readFile, rm, writeFile, readdir } from "fs/promises";
+import { mkdir, readFile, rm, writeFile } from "fs/promises";
 import { spawnSync } from "child_process";
 import { createHash } from "crypto";
 import { join, resolve, basename, parse } from "path";
 import { createReadStream, existsSync, statSync } from "fs";
-import { pack } from "tar-stream";
-import { parse as parseJS } from "acorn";
 
 const authKey = process.env.API_KEY;
 const baseDomain = process.env.BASE_DOMAIN;
@@ -40,88 +38,11 @@ createServer(async function (request, response) {
   }
 });
 
-async function onFetchNpm(request, response) {
-  const host = request.headers["x-forwarded-for"];
-  const url = new URL(request.url, "http://" + host);
-
-  // /:npm/@foo%2fbar
-  const parts = decodeURIComponent(url.pathname.replace("/:npm/", "")).split(
-    "/"
-  );
-
-  // [@foo, bar, ?0.1.0.tgz]
-  const [scope, name, requestedVersion] = parts;
-
-  if (!validateScope(scope) && validatePackageName(name)) {
-    return notFound(response);
-  }
-
-  response.setHeader("access-control-allow-origin", "*");
-  response.setHeader("access-control-expose-headers", "*");
-
-  if (!requestedVersion) {
-    const manifest = await generateManifest(scope, name, host);
-
-    if (!manifest) {
-      return notFound(response);
-    }
-
-    response.setHeader("cache-control", "no-cache, no-store, max-age=0");
-    response.setHeader("content-type", "application/json");
-    response.end(JSON.stringify(manifest));
-    return;
-  }
-
-  // [wd]/@foo/bar/0.1.0.mjs
-  const version = parse(requestedVersion).name;
-  const folder = join(workingDir, scope, name);
-  const file = join(folder, version + ".mjs");
-
-  if (!existsSync(file)) {
-    return notFound(response);
-  }
-
-  const content = await readFile(file, "utf-8");
-  const dependencies = await findDependencies(content);
-  const manifest = JSON.stringify({
-    name: `${scope}/${name}`,
-    version,
-    exports: "./index.mjs",
-    dependencies,
-  });
-
-  response.setHeader("content-type", "application/octet-stream");
-
-  if (version !== "latest") {
-    response.setHeader("cache-control", "public, max-age=31536000, immutable");
-  }
-
-  const tar = pack();
-  tar.pipe(response);
-  tar.entry({ name: "package/package.json" }, manifest);
-  tar.entry({ name: "package/index.mjs" }, content);
-  tar.finalize();
-}
-
-function validateScope(scope) {
-  return scope && /^@[a-z]$/.test(String(scope));
-}
-
-function validatePackageName(name) {
-  return name && /^[a-z-]$/.test(String(name));
-}
-
 async function onFetch(request, response) {
   const url = new URL(
     request.url,
     "http://" + request.headers["x-forwarded-for"]
   );
-
-  const isNpmRequest = url.pathname.startsWith("/:npm/");
-
-  if (isNpmRequest) {
-    return onFetchNpm(request, response);
-  }
 
   const file = await resolveFile(url);
 
@@ -307,75 +228,4 @@ function notFound(response) {
 
 function badRequest(response, reason = "") {
   response.writeHead(400).end(reason);
-}
-
-async function generateManifest(scope, name, host) {
-  const folder = join(workingDir, scope, name);
-  const packageName = `${scope}/${name}`;
-  const files = (await readdir(folder, { withFileTypes: true }))
-    .filter((f) => f.isFile())
-    .map((f) => parse(f.name).name)
-    .sort();
-
-  const validVersions = files.filter((f) => f !== "latest");
-
-  if (!files.length) {
-    return null;
-  }
-
-  const versionDates = Object.fromEntries(
-    validVersions.map((v) => [
-      v,
-      new Date(statSync(join(folder, v + ".mjs")).ctimeMs).toISOString(),
-    ])
-  );
-
-  const latestVersion = validVersions[validVersions.length - 1];
-
-  return {
-    name: packageName,
-    description: "",
-    "dist-tags": {
-      latest: latestVersion,
-    },
-    versions: Object.fromEntries(
-      await Promise.all(
-        validVersions.map(async (version) => [
-          version,
-          {
-            name: packageName,
-            version,
-            description: "",
-            dist: {
-              tarball: new URL(
-                `/:npm/${scope}/${name}/${version}.tgz`,
-                "https://" + host
-              ).toString(),
-            },
-            dependencies: await findDependenciesFromFile(
-              join(folder, version + ".mjs")
-            ),
-          },
-        ])
-      )
-    ),
-    time: {
-      created: versionDates[validVersions[0]],
-      modified: versionDates[latestVersion],
-      ...versionDates,
-    },
-  };
-}
-
-async function findDependenciesFromFile(file) {
-  const content = await readFile(file, "utf8");
-  return findDependencies(content);
-}
-
-async function findDependencies(content) {
-  const ast = parseJS(content, { ecmaVersion: 2023, sourceType: "module" });
-  const imports = ast.body.filter((n) => n.type === "ImportDeclaration");
-  const names = imports.map((imp) => imp.source.value);
-
-  return Object.fromEntries(names.map((name) => [name, "latest"]));
 }
