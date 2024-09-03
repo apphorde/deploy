@@ -56,8 +56,13 @@ async function onFetchNpm(request, response) {
     return notFound(response);
   }
 
+  response.setHeader("access-control-allow-origin", "*");
+  response.setHeader("access-control-expose-headers", "*");
+
   if (!version) {
     const manifest = await generateManifest(scope, name, host);
+    response.setHeader("cache-control", "no-cache, no-store, max-age=0");
+    response.setHeader("content-type", "application/json");
     response.end(JSON.stringify(manifest));
     return;
   }
@@ -252,7 +257,7 @@ async function onDeploy(request, response) {
     let previousDir = "";
 
     if (existsSync(manifest)) {
-      const json = JSON.parse(await readFile(manifest, 'utf-8'));
+      const json = JSON.parse(await readFile(manifest, "utf-8"));
 
       if (json.name) {
         const aliasFile = join(workingDir, json.name + ".alias");
@@ -329,7 +334,7 @@ async function generateManifest(scope, name, host) {
       ...Object.fromEntries(
         files.map((file) => [
           file,
-          new Date(statSync(join(folder, file + '.mjs')).ctimeMs).toISOString(),
+          new Date(statSync(join(folder, file + ".mjs")).ctimeMs).toISOString(),
         ])
       ),
     },
