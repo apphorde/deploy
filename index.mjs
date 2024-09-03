@@ -290,7 +290,7 @@ function badRequest(response, reason = "") {
 }
 
 async function generateManifest(scope, name, host) {
-  const folder = join(dataPath, scope, name);
+  const folder = join(workingDir, scope, name);
   const files = await readdir(folder);
 
   return {
