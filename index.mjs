@@ -293,10 +293,10 @@ function badRequest(response, reason = "") {
 
 async function generateManifest(scope, name, host) {
   const folder = join(workingDir, scope, name);
-  const files = await readdir(folder, { withFileTypes: true })
+  const packageName = `${scope}/${name}`;
+  const files = (await readdir(folder, { withFileTypes: true }))
     .filter((f) => f.isFile())
     .map((f) => parse(f.name).name);
-  const packageName = `${scope}/${name}`;
 
   console.log(files);
 
