@@ -2,8 +2,9 @@ import createServer from "@cloud-cli/http";
 import { mkdir, readFile, rm, writeFile } from "fs/promises";
 import { spawnSync } from "child_process";
 import { createHash } from "crypto";
-import path, { join, resolve, basename } from "path";
+import { join, resolve, basename } from "path";
 import { createReadStream, existsSync, statSync } from "fs";
+import { pack } from "tar-stream";
 
 const authKey = process.env.API_KEY;
 const baseDomain = process.env.BASE_DOMAIN;
@@ -38,20 +39,79 @@ createServer(async function (request, response) {
   }
 });
 
+async function onFetchNpm(request, response) {
+  const host = request.headers["x-forwarded-for"];
+  const url = new URL(request.url, "http://" + host);
+
+  // /:npm/@foo%2fbar
+  const parts = decodeURIComponent(url.pathname.replace("/:npm/")).split("/");
+
+  // [@foo, bar, ?0.1.0.tgz]
+  const [scope, name, version] = parts;
+
+  if (!validateScope(scope) && validatePackageName(name)) {
+    return notFound(response);
+  }
+
+  if (!version) {
+    const manifest = await generateManifest(scope, name, host);
+    response.end(JSON.stringify(manifest));
+    return;
+  }
+
+  const folder = join(workingDir, scope);
+  const file = join(folder, version + ".mjs");
+
+  if (!existsSync(file)) {
+    return notFound(response);
+  }
+
+  const content = await readFile(file, "utf-8");
+  const manifest = JSON.stringify({
+    name: `${scope}/${name}`,
+    version,
+    exports: "./index.mjs",
+  });
+
+  response.setHeader("content-type", "application/octet-stream");
+
+  if (version !== "latest") {
+    response.setHeader("cache-control", "public, max-age=31536000, immutable");
+  }
+
+  const tar = pack();
+  tar.entry({ name: "package.json" }, manifest);
+  tar.entry({ name: "index.mjs" }, content);
+  tar.pipe(response);
+}
+
+function validateScope(scope) {
+  return scope && /^@[a-z]$/.test(String(scope));
+}
+
+function validatePackageName(name) {
+  return name && /^[a-z-]$/.test(String(name));
+}
+
 async function onFetch(request, response) {
   const url = new URL(
     request.url,
     "http://" + request.headers["x-forwarded-for"]
   );
 
-  const host = request.headers["x-forwarded-for"];
+  const isNpmRequest = url.pathname.startsWith("/:npm/");
+
+  if (isNpmRequest) {
+    return onFetchNpm(request, response);
+  }
+
   const file = await resolveFile(url);
 
   if (!file) {
     return notFound(response);
   }
 
-  const extension = file.split(".").pop();
+  const extension = parse(file).extension;
   if (!url.searchParams.has("nocache")) {
     response.setHeader("Cache-Control", "max-age=86400");
   }
@@ -227,4 +287,47 @@ function notFound(response) {
 
 function badRequest(response, reason = "") {
   response.writeHead(400).end(reason);
+}
+
+async function generateManifest(scope, name, host) {
+  const folder = join(dataPath, scope, name);
+  const files = await readdir(folder);
+
+  return {
+    name,
+    description: "",
+    "dist-tags": {
+      latest: "latest",
+    },
+    versions: Object.fromEntries(
+      files.map((file) => {
+        const version = parse(file).name;
+        return [
+          version,
+          {
+            name: `${scope}/${name}`,
+            version,
+            description: "",
+            dist: {
+              tarball: new URL(
+                `/:npm/${scope}/${name}/${version}.tgz`,
+                "https://" + host
+              ).toString(),
+            },
+            dependencies: {},
+          },
+        ];
+      })
+    ),
+    time: {
+      created: "",
+      modified: "",
+      ...Object.fromEntries(
+        files.map((file) => [
+          parse(file).name,
+          new Date(statSync(join(folder, file)).ctimeMs).toISOString(),
+        ])
+      ),
+    },
+  };
 }
