@@ -44,7 +44,7 @@ async function onFetchNpm(request, response) {
   const url = new URL(request.url, "http://" + host);
 
   // /:npm/@foo%2fbar
-  const parts = decodeURIComponent(url.pathname.replace("/:npm/")).split("/");
+  const parts = decodeURIComponent(url.pathname.replace("/:npm/", '')).split("/");
 
   // [@foo, bar, ?0.1.0.tgz]
   const [scope, name, version] = parts;
