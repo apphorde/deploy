@@ -59,7 +59,8 @@ async function onFetchNpm(request, response) {
     return;
   }
 
-  const folder = join(workingDir, scope);
+  // [wd]/@foo/bar/0.1.0.mjs
+  const folder = join(workingDir, scope, name);
   const file = join(folder, version + ".mjs");
 
   if (!existsSync(file)) {
