@@ -129,7 +129,7 @@ async function onFetch(request, response) {
     return notFound(response);
   }
 
-  const extension = parse(file).ext;
+  const extension = parse(file).ext.toLowerCase();
   if (!url.searchParams.has("nocache")) {
     response.setHeader("Cache-Control", "max-age=86400");
   }
@@ -137,6 +137,8 @@ async function onFetch(request, response) {
   response.setHeader("Access-Control-Allow-Origin", "*");
   response.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS, POST");
   response.setHeader("Content-Type", mimeTypes[extension] || "text/plain");
+
+  console.log(file, "extension", extension, mimeTypes[extension]);
 
   createReadStream(file).pipe(response);
 }
