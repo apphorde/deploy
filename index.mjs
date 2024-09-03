@@ -61,6 +61,11 @@ async function onFetchNpm(request, response) {
 
   if (!version) {
     const manifest = await generateManifest(scope, name, host);
+
+    if (!manifest) {
+      return notFound(response);
+    }
+
     response.setHeader("cache-control", "no-cache, no-store, max-age=0");
     response.setHeader("content-type", "application/json");
     response.end(JSON.stringify(manifest));
@@ -304,24 +309,39 @@ async function generateManifest(scope, name, host) {
   const files = (await readdir(folder, { withFileTypes: true }))
     .filter((f) => f.isFile())
     .map((f) => parse(f.name).name)
-    .filter((f) => f !== "latest");
+    .sort();
+
+  const validVersions = files.filter((f) => f !== "latest");
+
+  if (!files.length) {
+    return null;
+  }
+
+  const versionDates = Object.fromEntries(
+    validVersions.map((v) => [
+      v,
+      new Date(statSync(join(folder, v + ".mjs")).ctimeMs).toISOString(),
+    ])
+  );
+
+  const latestVersion = validVersions[validVersions.length - 1];
 
   return {
     name: packageName,
     description: "",
     "dist-tags": {
-      latest: "latest",
+      latest: latestVersion,
     },
     versions: Object.fromEntries(
-      files.map((file) => [
-        file,
+      validVersions.map((version) => [
+        version,
         {
           name: packageName,
-          version: file,
+          version,
           description: "",
           dist: {
             tarball: new URL(
-              `/:npm/${scope}/${name}/${file}.tgz`,
+              `/:npm/${scope}/${name}/${version}.tgz`,
               "https://" + host
             ).toString(),
           },
@@ -330,14 +350,9 @@ async function generateManifest(scope, name, host) {
       ])
     ),
     time: {
-      created: "",
-      modified: "",
-      ...Object.fromEntries(
-        files.map((file) => [
-          file,
-          new Date(statSync(join(folder, file + ".mjs")).ctimeMs).toISOString(),
-        ])
-      ),
+      created: versionDates[validVersions[0]],
+      modified: versionDates[latestVersion],
+      ...versionDates,
     },
   };
 }
