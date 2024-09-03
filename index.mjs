@@ -2,7 +2,7 @@ import createServer from "@cloud-cli/http";
 import { mkdir, readFile, rm, writeFile, readdir } from "fs/promises";
 import { spawnSync } from "child_process";
 import { createHash } from "crypto";
-import { join, resolve, basename } from "path";
+import { join, resolve, basename, parse } from "path";
 import { createReadStream, existsSync, statSync } from "fs";
 import { pack } from "tar-stream";
 
@@ -44,7 +44,9 @@ async function onFetchNpm(request, response) {
   const url = new URL(request.url, "http://" + host);
 
   // /:npm/@foo%2fbar
-  const parts = decodeURIComponent(url.pathname.replace("/:npm/", '')).split("/");
+  const parts = decodeURIComponent(url.pathname.replace("/:npm/", "")).split(
+    "/"
+  );
 
   // [@foo, bar, ?0.1.0.tgz]
   const [scope, name, version] = parts;
@@ -113,7 +115,7 @@ async function onFetch(request, response) {
     return notFound(response);
   }
 
-  const extension = parse(file).extension;
+  const extension = parse(file).ext;
   if (!url.searchParams.has("nocache")) {
     response.setHeader("Cache-Control", "max-age=86400");
   }
@@ -250,7 +252,7 @@ async function onDeploy(request, response) {
     let previousDir = "";
 
     if (existsSync(manifest)) {
-      const json = JSON.parse(await readFile(manifest));
+      const json = JSON.parse(await readFile(manifest, 'utf-8'));
 
       if (json.name) {
         const aliasFile = join(workingDir, json.name + ".alias");
