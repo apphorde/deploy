@@ -5,6 +5,7 @@ import { createHash } from "crypto";
 import { join, resolve, basename, parse } from "path";
 import { createReadStream, existsSync, statSync } from "fs";
 import { pack } from "tar-stream";
+import { parse as parseJS } from "acorn";
 
 const authKey = process.env.API_KEY;
 const baseDomain = process.env.BASE_DOMAIN;
@@ -81,10 +82,12 @@ async function onFetchNpm(request, response) {
   }
 
   const content = await readFile(file, "utf-8");
+  const dependencies = await findDependencies(content);
   const manifest = JSON.stringify({
     name: `${scope}/${name}`,
     version,
     exports: "./index.mjs",
+    dependencies,
   });
 
   response.setHeader("content-type", "application/octet-stream");
@@ -95,8 +98,8 @@ async function onFetchNpm(request, response) {
 
   const tar = pack();
   tar.pipe(response);
-  tar.entry({ name: "package.json" }, manifest);
-  tar.entry({ name: "index.mjs" }, content);
+  tar.entry({ name: "package/package.json" }, manifest);
+  tar.entry({ name: "package/index.mjs" }, content);
   tar.finalize();
 }
 
@@ -334,21 +337,25 @@ async function generateManifest(scope, name, host) {
       latest: latestVersion,
     },
     versions: Object.fromEntries(
-      validVersions.map((version) => [
-        version,
-        {
-          name: packageName,
+      await Promise.all(
+        validVersions.map(async (version) => [
           version,
-          description: "",
-          dist: {
-            tarball: new URL(
-              `/:npm/${scope}/${name}/${version}.tgz`,
-              "https://" + host
-            ).toString(),
+          {
+            name: packageName,
+            version,
+            description: "",
+            dist: {
+              tarball: new URL(
+                `/:npm/${scope}/${name}/${version}.tgz`,
+                "https://" + host
+              ).toString(),
+            },
+            dependencies: await findDependenciesFromFile(
+              join(folder, version + ".mjs")
+            ),
           },
-          dependencies: {},
-        },
-      ])
+        ])
+      )
     ),
     time: {
       created: versionDates[validVersions[0]],
@@ -356,4 +363,17 @@ async function generateManifest(scope, name, host) {
       ...versionDates,
     },
   };
+}
+
+async function findDependenciesFromFile(file) {
+  const content = await readFile(file, "utf8");
+  return findDependencies(content);
+}
+
+async function findDependencies(content) {
+  const ast = parseJS(content, { ecmaVersion: 2023, sourceType: "module" });
+  const imports = ast.body.filter((n) => n.type === "ImportDeclaration");
+  const names = imports.map((imp) => imp.source.value);
+
+  return Object.fromEntries(names.map((name) => [name, "latest"]));
 }
