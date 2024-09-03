@@ -300,8 +300,6 @@ async function generateManifest(scope, name, host) {
     .filter((f) => f.isFile())
     .map((f) => parse(f.name).name);
 
-  console.log(files);
-
   return {
     name: packageName,
     description: "",
@@ -331,7 +329,7 @@ async function generateManifest(scope, name, host) {
       ...Object.fromEntries(
         files.map((file) => [
           file,
-          new Date(statSync(join(folder, file)).ctimeMs).toISOString(),
+          new Date(statSync(join(folder, file + '.mjs')).ctimeMs).toISOString(),
         ])
       ),
     },
