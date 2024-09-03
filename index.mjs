@@ -74,7 +74,7 @@ async function onFetchNpm(request, response) {
 
   // [wd]/@foo/bar/0.1.0.mjs
   const folder = join(workingDir, scope, name);
-  const file = join(folder, version + ".mjs");
+  const file = join(folder, parse(version).name + ".mjs");
 
   if (!existsSync(file)) {
     return notFound(response);
