@@ -48,6 +48,7 @@ async function onFetchNpm(request, response) {
 
   // [@foo, bar, ?0.1.0.tgz]
   const [scope, name, version] = parts;
+  console.log("npm", scope, name, version);
 
   if (!validateScope(scope) && validatePackageName(name)) {
     return notFound(response);
@@ -292,40 +293,42 @@ function badRequest(response, reason = "") {
 
 async function generateManifest(scope, name, host) {
   const folder = join(workingDir, scope, name);
-  const files = await readdir(folder);
+  const files = await readdir(folder, { withFileTypes: true })
+    .filter((f) => f.isFile())
+    .map((f) => parse(f.name).name);
+  const packageName = `${scope}/${name}`;
+
+  console.log(files);
 
   return {
-    name,
+    name: packageName,
     description: "",
     "dist-tags": {
       latest: "latest",
     },
     versions: Object.fromEntries(
-      files.map((file) => {
-        const version = parse(file).name;
-        return [
-          version,
-          {
-            name: `${scope}/${name}`,
-            version,
-            description: "",
-            dist: {
-              tarball: new URL(
-                `/:npm/${scope}/${name}/${version}.tgz`,
-                "https://" + host
-              ).toString(),
-            },
-            dependencies: {},
+      files.map((file) => [
+        file,
+        {
+          name: packageName,
+          version: file,
+          description: "",
+          dist: {
+            tarball: new URL(
+              `/:npm/${scope}/${name}/${file}.tgz`,
+              "https://" + host
+            ).toString(),
           },
-        ];
-      })
+          dependencies: {},
+        },
+      ])
     ),
     time: {
       created: "",
       modified: "",
       ...Object.fromEntries(
         files.map((file) => [
-          parse(file).name,
+          file,
           new Date(statSync(join(folder, file)).ctimeMs).toISOString(),
         ])
       ),
