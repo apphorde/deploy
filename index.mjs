@@ -94,9 +94,10 @@ async function onFetchNpm(request, response) {
   }
 
   const tar = pack();
+  tar.pipe(response);
   tar.entry({ name: "package.json" }, manifest);
   tar.entry({ name: "index.mjs" }, content);
-  tar.pipe(response);
+  tar.finalize();
 }
 
 function validateScope(scope) {
