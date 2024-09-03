@@ -1,5 +1,5 @@
 import createServer from "@cloud-cli/http";
-import { mkdir, readFile, rm, writeFile } from "fs/promises";
+import { mkdir, readFile, rm, writeFile, readdir } from "fs/promises";
 import { spawnSync } from "child_process";
 import { createHash } from "crypto";
 import { join, resolve, basename } from "path";
