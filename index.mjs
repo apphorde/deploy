@@ -63,8 +63,6 @@ async function onFetch(request, response) {
   );
   response.setHeader("Content-Type", mimeTypes[extension] || "text/plain");
 
-  console.log(file, "extension", extension, mimeTypes[extension]);
-
   if (request.method === "HEAD") {
     return request.end();
   }
