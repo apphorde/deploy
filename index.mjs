@@ -102,6 +102,7 @@ async function resolveFile(url) {
    * /
    * /foo.css
    * /foo-bar
+   * /foo-bar@1.0.0
    * /foo-bar@1.0.0.mjs
    * /foo-bar/index.mjs
    */
@@ -111,7 +112,9 @@ async function resolveFile(url) {
       : [
           resolve(pathname),
           resolve(pathname.replace("@", "/")),
+          resolve(pathname.replace("@", "/") + '.mjs'),
           resolve(pathname + "/index.mjs"),
+          resolve(pathname + "/0.0.0.mjs"),
           resolve(pathname + "/latest.mjs"),
         ];
 
