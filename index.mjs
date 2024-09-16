@@ -112,12 +112,13 @@ async function resolveFile(url) {
       : [
           resolve(pathname),
           resolve(pathname.replace("@", "/")),
-          resolve(pathname.replace("@", "/") + '.mjs'),
+          resolve(pathname.replace("@", "/") + ".mjs"),
           resolve(pathname + "/index.mjs"),
           resolve(pathname + "/0.0.0.mjs"),
           resolve(pathname + "/latest.mjs"),
         ];
 
+  console.log("try files at ", folder, candidates);
   return candidates
     .map((c) => join(workingDir, folder, c))
     .find((f) => existsSync(f) && statSync(f).isFile());
