@@ -10,10 +10,10 @@ const baseDomain = process.env.BASE_DOMAIN;
 const workingDir = process.env.DATA_PATH;
 const versionMarker = /^(.+)@(.+)$/g;
 const mimeTypes = {
-  css: "text/css",
-  html: "text/html",
-  js: "text/javascript",
-  mjs: "text/javascript",
+  '.css': "text/css",
+  '.html': "text/html",
+  '.js': "text/javascript",
+  '.mjs': "text/javascript",
 };
 
 createServer(async function (request, response) {
@@ -122,7 +122,6 @@ async function resolveFile(url) {
           resolve(pathname + "/latest.mjs"),
         ];
 
-  console.log("try files at ", folder, candidates);
   return candidates
     .map((c) => join(workingDir, folder, c))
     .find((f) => existsSync(f) && statSync(f).isFile());
