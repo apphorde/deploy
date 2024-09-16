@@ -8,7 +8,7 @@ import { createReadStream, existsSync, statSync } from "fs";
 const authKey = process.env.API_KEY;
 const baseDomain = process.env.BASE_DOMAIN;
 const workingDir = process.env.DATA_PATH;
-const scopeRe = /[@]+/g;
+const versionMarker = /^(.+)@(.+)$/g;
 const mimeTypes = {
   css: "text/css",
   html: "text/html",
@@ -115,8 +115,8 @@ async function resolveFile(url) {
       ? ["/index.html", "/index.mjs"]
       : [
           resolve(pathname),
-          resolve(pathname.replace(scopeRe, "/")),
-          resolve(pathname.replace(scopeRe, "/") + ".mjs"),
+          resolve(pathname.replace(versionMarker, "$1/$2")),
+          resolve(pathname.replace(versionMarker, "$1/$2") + ".mjs"),
           resolve(pathname + "/index.mjs"),
           resolve(pathname + "/0.0.0.mjs"),
           resolve(pathname + "/latest.mjs"),
