@@ -25,7 +25,7 @@ createServer(async function (request, response) {
       return onBackup(request, response);
     }
 
-    if (["OPTIONS", "GET"].includes(request.method) === false) {
+    if (["OPTIONS", "GET", "HEAD"].includes(request.method) === false) {
       return notFound(response);
     }
 
@@ -56,10 +56,17 @@ async function onFetch(request, response) {
   }
 
   response.setHeader("Access-Control-Allow-Origin", "*");
-  response.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS, POST");
+  response.setHeader(
+    "Access-Control-Allow-Methods",
+    "GET, OPTIONS, POST, HEAD"
+  );
   response.setHeader("Content-Type", mimeTypes[extension] || "text/plain");
 
   console.log(file, "extension", extension, mimeTypes[extension]);
+
+  if (request.method === "HEAD") {
+    return request.end();
+  }
 
   createReadStream(file).pipe(response);
 }
