@@ -134,16 +134,15 @@ function getCandidates(pathname) {
   }
 
   const withVersionReplaced = pathname.replace(versionMarker, "$1/$2");
-  const requestedExtension = parse(pathname).ext.toLowerCase();
   const resolvedPathname = resolve(pathname);
-  const extensions =
-    requestedExtension && !extensionCandidates.includes(requestedExtension)
-      ? extensionCandidates
-      : null;
+  const requestedExtension = parse(pathname).ext.toLowerCase();
+  const extensions = requestedExtension ? null : extensionCandidates;
 
   const candidates = [
-    resolve(withVersionReplaced),
-    resolve(withVersionReplaced.replace("latest", "0.0.0")),
+    ...new Set([
+      resolve(withVersionReplaced),
+      resolve(withVersionReplaced.replace("latest", "0.0.0")),
+    ]),
   ];
 
   if (!extensions) {
