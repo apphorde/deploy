@@ -9,7 +9,7 @@ const authKey = process.env.API_KEY;
 const baseDomain = process.env.BASE_DOMAIN;
 const workingDir = process.env.DATA_PATH;
 const versionMarker = /^(.+)@(.+)$/g;
-const extensionCandidates = [".mjs", ".js", ".css"];
+const extensionCandidates = [".mjs", ".js", ".css", ".html"];
 const indexFiles = extensionCandidates.map((ext) => "index" + ext);
 const mimeTypes = {
   ".css": "text/css",
