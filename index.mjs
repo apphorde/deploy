@@ -129,12 +129,17 @@ function getCandidates(pathname) {
     return indexFiles;
   }
 
+  if (pathname === "/favicon.ico") {
+    return pathname;
+  }
+
   const withVersionReplaced = pathname.replace(versionMarker, "$1/$2");
   const requestedExtension = parse(pathname).ext.toLowerCase();
   const resolvedPathname = resolve(pathname);
-  const extensions = !extensionCandidates.includes(requestedExtension)
-    ? extensionCandidates
-    : null;
+  const extensions =
+    requestedExtension && !extensionCandidates.includes(requestedExtension)
+      ? extensionCandidates
+      : null;
 
   const candidates = [
     resolve(withVersionReplaced),
@@ -145,11 +150,11 @@ function getCandidates(pathname) {
     return [resolvedPathname, ...candidates];
   }
 
-  candidates.push([
+  candidates.push(
     resolvedPathname + "/index",
     resolvedPathname + "/0.0.0",
-    resolvedPathname + "/latest",
-  ]);
+    resolvedPathname + "/latest"
+  );
 
   return [
     resolvedPathname,
