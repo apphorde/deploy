@@ -66,7 +66,7 @@ async function onFetch(request, response) {
   response.setHeader("Content-Type", mimeTypes[extension] || "text/plain");
 
   if (request.method === "HEAD") {
-    return request.end();
+    return response.end();
   }
 
   createReadStream(file).pipe(response);
