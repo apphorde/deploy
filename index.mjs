@@ -9,11 +9,13 @@ const authKey = process.env.API_KEY;
 const baseDomain = process.env.BASE_DOMAIN;
 const workingDir = process.env.DATA_PATH;
 const versionMarker = /^(.+)@(.+)$/g;
+const extensionCandidates = [".mjs", ".js", ".css"];
+const indexFiles = extensionCandidates.map((ext) => "index" + ext);
 const mimeTypes = {
-  '.css': "text/css",
-  '.html': "text/html",
-  '.js': "text/javascript",
-  '.mjs': "text/javascript",
+  ".css": "text/css",
+  ".html": "text/html",
+  ".js": "text/javascript",
+  ".mjs": "text/javascript",
 };
 
 createServer(async function (request, response) {
@@ -108,21 +110,42 @@ async function resolveFile(url) {
    * /@scope/foobar@latest
    * /@scope/foobar@latest.mjs
    */
-  let candidates =
-    pathname === "/"
-      ? ["/index.html", "/index.mjs"]
-      : [
-          resolve(pathname),
-          resolve(pathname.replace(versionMarker, "$1/$2")),
-          resolve(pathname.replace(versionMarker, "$1/$2") + ".mjs"),
-          resolve(pathname + "/index.mjs"),
-          resolve(pathname + "/0.0.0.mjs"),
-          resolve(pathname + "/latest.mjs"),
-        ];
+  let candidates = getCandidates(pathname);
 
-  return candidates
+  const found = candidates
     .map((c) => join(workingDir, folder, c))
     .find((f) => existsSync(f) && statSync(f).isFile());
+
+  if (!found) {
+    console.log(folder, candidates);
+  }
+
+  return file;
+}
+
+function getCandidates(pathname) {
+  if (pathname === "/") {
+    return indexFiles;
+  }
+
+  const withVersionReplaced = pathname.replace(versionMarker, "$1/$2");
+  const requestedExtension = parse(pathname).ext.toLowerCase();
+  const extensions = extensionCandidates.includes(requestedExtension)
+    ? [requestedExtension]
+    : extensionCandidates;
+
+  const candidates = [
+    resolve(withVersionReplaced),
+    resolve(withVersionReplaced.replace("latest", "0.0.0")),
+    resolve(pathname + "/index"),
+    resolve(pathname + "/0.0.0"),
+    resolve(pathname + "/latest"),
+  ];
+
+  return [
+    resolve(pathname),
+    ...extensions.flatMap((ext) => candidates.map((c) => c + ext)),
+  ];
 }
 
 async function onBackup(request, response) {
