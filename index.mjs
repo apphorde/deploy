@@ -118,9 +118,10 @@ async function resolveFile(url) {
 
   if (!found) {
     console.log(folder, candidates);
+    return null;
   }
 
-  return file;
+  return found;
 }
 
 function getCandidates(pathname) {
@@ -130,20 +131,28 @@ function getCandidates(pathname) {
 
   const withVersionReplaced = pathname.replace(versionMarker, "$1/$2");
   const requestedExtension = parse(pathname).ext.toLowerCase();
-  const extensions = extensionCandidates.includes(requestedExtension)
-    ? [requestedExtension]
-    : extensionCandidates;
+  const resolvedPathname = resolve(pathname);
+  const extensions = !extensionCandidates.includes(requestedExtension)
+    ? extensionCandidates
+    : null;
 
   const candidates = [
     resolve(withVersionReplaced),
     resolve(withVersionReplaced.replace("latest", "0.0.0")),
-    resolve(pathname + "/index"),
-    resolve(pathname + "/0.0.0"),
-    resolve(pathname + "/latest"),
   ];
 
+  if (!extensions) {
+    return [resolvedPathname, ...candidates];
+  }
+
+  candidates.push([
+    resolvedPathname + "/index",
+    resolvedPathname + "/0.0.0",
+    resolvedPathname + "/latest",
+  ]);
+
   return [
-    resolve(pathname),
+    resolvedPathname,
     ...extensions.flatMap((ext) => candidates.map((c) => c + ext)),
   ];
 }
