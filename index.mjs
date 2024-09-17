@@ -72,6 +72,11 @@ async function onFetch(request, response) {
   createReadStream(file).pipe(response);
 }
 
+/**
+ *
+ * @param {URL} url
+ * @returns {Promise<string|null>}
+ */
 async function resolveFile(url) {
   const { hostname, pathname } = url;
 
@@ -124,13 +129,17 @@ async function resolveFile(url) {
   return found;
 }
 
+/**
+ * @param {string} pathname
+ * @returns {string[]}
+ */
 function getCandidates(pathname) {
   if (pathname === "/") {
     return indexFiles;
   }
 
   if (pathname === "/favicon.ico") {
-    return pathname;
+    return [pathname];
   }
 
   const withVersionReplaced = pathname.replace(versionMarker, "$1/$2");
