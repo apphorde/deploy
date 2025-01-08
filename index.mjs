@@ -5,6 +5,7 @@ import { createHash } from "crypto";
 import { join, resolve, basename, parse } from "path";
 import { createReadStream, existsSync, statSync } from "fs";
 
+const enableDebug = !!process.env.DEBUG;
 const authKey = process.env.API_KEY;
 const baseDomain = process.env.BASE_DOMAIN;
 const workingDir = process.env.DATA_PATH;
@@ -122,7 +123,9 @@ async function resolveFile(url) {
     .find((f) => existsSync(f) && statSync(f).isFile());
 
   if (!found) {
-    console.log(folder, candidates);
+    if (enableDebug) {
+      console.log("not found", folder, candidates);
+    }
     return null;
   }
 
