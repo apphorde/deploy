@@ -94,6 +94,10 @@ async function resolveFile(url) {
     folder = folder.replace("--", "@");
   }
 
+  if (folder.startsWith("at-")) {
+    folder = folder.replace("at-", "@");
+  }
+
   if (folder !== ".") {
     const aliasFile = join(workingDir, folder + ".alias");
     if (!existsSync(join(workingDir, folder)) && existsSync(aliasFile)) {
