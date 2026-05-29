@@ -1,9 +1,9 @@
 import createServer from "@cloud-cli/http";
-import { mkdir, readFile, rm, writeFile } from "fs/promises";
-import { spawnSync } from "child_process";
-import { createHash } from "crypto";
-import { join, resolve, basename, parse } from "path";
-import { createReadStream, existsSync, statSync } from "fs";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import { join, resolve, basename, parse } from "node:path";
+import { createReadStream, existsSync, statSync } from "node:fs";
 
 const enableDebug = !!process.env.DEBUG;
 const authKey = process.env.API_KEY;
@@ -112,6 +112,8 @@ async function resolveFile(url) {
   /**
    * /
    * /foo.css
+   * /foo.css/latest
+   * /foo.css/0.0.0
    * /foo-bar
    * /foo-bar@1.0.0
    * /foo-bar@1.0.0.mjs
@@ -152,24 +154,21 @@ function getCandidates(pathname) {
   const withVersionReplaced = pathname.replace(versionMarker, "$1/$2");
   const resolvedPathname = resolve(pathname);
   const requestedExtension = parse(pathname).ext.toLowerCase();
-  const extensions = requestedExtension ? null : extensionCandidates;
+  const extensions = requestedExtension ? extensionCandidates.concat(requestedExtension) : extensionCandidates;
 
+  // withVersionReplaced:
+  //   foo
+  //   foo/1.2.3
+  //   foo/latest
   const candidates = [
     ...new Set([
       resolve(withVersionReplaced),
       resolve(withVersionReplaced.replace("latest", "0.0.0")),
+      resolvedPathname + "/index",
+      resolvedPathname + "/0.0.0",
+      resolvedPathname + "/latest"
     ]),
   ];
-
-  if (!extensions) {
-    return [resolvedPathname, ...candidates];
-  }
-
-  candidates.push(
-    resolvedPathname + "/index",
-    resolvedPathname + "/0.0.0",
-    resolvedPathname + "/latest"
-  );
 
   return [
     resolvedPathname,
