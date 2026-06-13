@@ -2,7 +2,7 @@
 
 set -e
 
-if [[ -z "$DEPLOY_API_KEY" ]];
+if [[ -z "$DEPLOY_API_KEY" ]]; then
   echo "Error: DEPLOY_API_KEY was not defined in the environment!"
   exit 2
 fi
