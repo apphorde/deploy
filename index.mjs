@@ -25,6 +25,10 @@ createServer(async function (request, response) {
       return onDeploy(request, response);
     }
 
+    if (request.method === "DELETE") {
+      return onDelete(request, response);
+    }
+
     if (request.method === "COPY") {
       return onBackup(request, response);
     }
@@ -214,6 +218,31 @@ async function onBackup(request, response) {
   );
 
   response.end(sh.stdout);
+}
+
+async function onDeploy(request, response) {
+  if (request.headers.authorization !== authKey) {
+    console.log("unauthorized key", request.headers.authorization);
+    badRequest(response);
+    return;
+  }
+
+  const url = new URL(request.url, "http://localhost");
+  let name = basename(resolve(url.pathname.slice(1)));
+
+  const aliasFile = join(workingDir, name + ".alias");
+  if (existsSync(aliasFile) && statSync(aliasFile).isFile()) {
+    name = await readFile(aliasFile, "utf8");
+  }
+
+  const dir = join(workingDir, name);
+  if (!existsSync(dir) || !statSync(dir).isDirectory()) {
+    notFound(response);
+    return;
+  }
+
+  rmdirSync(dir);
+  response.writeHead(202).end();
 }
 
 async function onDeploy(request, response) {
