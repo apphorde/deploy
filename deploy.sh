@@ -20,7 +20,7 @@ pull_project() {
 
 push_project() {
   echo Pushing $PWD
-  tar -cz -f - -C $PWD --exclude node_modules/ --exclude .git/ --exclude tmp/ . | curl -sS --output - -H 'Authorization: '$DEPLOY_API_KEY https://deploy.static.apphor.de/ --data-binary @-
+  tar -cz -f - -C $PWD --exclude node_modules/ --exclude .git/ --exclude .github/ --exclude tmp/ . | curl -sS --output - -H 'Authorization: '$DEPLOY_API_KEY https://deploy.static.apphor.de/ --data-binary @-
 }
 
 deploy_help() {
