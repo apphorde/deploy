@@ -11,7 +11,7 @@ pull_project() {
   name="$1"
 
   if [[ -z "$name" ]]; then
-    name=$(cat package.json | jq '.name' | sed s/\"//g)
+    name=$(cat package.json | jq -r '.name')
   fi
 
   echo Pulling $name into $PWD
@@ -44,4 +44,3 @@ fi
 if [[ "$1" == "help" ]]; then
   deploy_help
 fi
-
