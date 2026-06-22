@@ -26,7 +26,7 @@ createServer(async function (request, response) {
     }
 
     if (request.method === "DELETE") {
-      return onDelete(request, response);
+      return onRemove(request, response);
     }
 
     if (request.method === "COPY") {
@@ -220,7 +220,7 @@ async function onBackup(request, response) {
   response.end(sh.stdout);
 }
 
-async function onDeploy(request, response) {
+async function onRemove(request, response) {
   if (request.headers.authorization !== authKey) {
     console.log("unauthorized key", request.headers.authorization);
     badRequest(response);
