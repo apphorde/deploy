@@ -17,7 +17,7 @@ const mimeTypes = {
   ".html": "text/html",
   ".js": "text/javascript",
   ".mjs": "text/javascript",
-  ".svg": "image/svg",
+  ".svg": "image/svg+xml",
   ".png": "image/png",
   ".jpeg": "image/jpeg",
   ".jpg": "image/jpeg",
