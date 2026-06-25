@@ -17,6 +17,10 @@ const mimeTypes = {
   ".html": "text/html",
   ".js": "text/javascript",
   ".mjs": "text/javascript",
+  ".svg": "image/svg",
+  ".png": "image/png",
+  ".jpeg": "image/jpeg",
+  ".jpg": "image/jpeg",
 };
 
 createServer(async function (request, response) {
