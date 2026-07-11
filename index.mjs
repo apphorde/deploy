@@ -281,23 +281,27 @@ async function onDeploy(request, response) {
     }
 
     const manifest = join(dir, "package.json");
-    let alias = "";
+    let alias = request.headers['x-deploy-alias'] || "";
     let previousDir = "";
 
-    if (existsSync(manifest)) {
+    if (!alias && existsSync(manifest)) {
       const json = JSON.parse(await readFile(manifest, "utf-8"));
 
       if (json.name) {
-        const aliasFile = join(workingDir, json.name + ".alias");
-        previousDir =
-          (existsSync(aliasFile) && (await readFile(aliasFile, "utf-8"))) || "";
-        await writeFile(aliasFile, hash, "utf-8");
-        alias = json.name;
+        alias = json.name
       }
+
     }
 
-    if (previousDir) {
-      await rm(join(workingDir, previousDir), { recursive: true, force: true });
+    if (alias) {
+      const aliasFile = join(workingDir, alias + ".alias");
+      previousDir =
+        (existsSync(aliasFile) && (await readFile(aliasFile, "utf-8"))) || "";
+      await writeFile(aliasFile, hash, "utf-8");
+
+      if (previousDir) {
+        await rm(join(workingDir, previousDir), { recursive: true, force: true });
+      }
     }
 
     response.writeHead(201).end(
