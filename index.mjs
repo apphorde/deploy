@@ -53,7 +53,7 @@ createServer(async function (request, response) {
 async function onFetch(request, response) {
   const url = new URL(
     request.url,
-    "http://" + request.headers["x-forwarded-for"]
+    "http://" + request.headers["x-forwarded-host"]
   );
 
   const file = await resolveFile(url);
