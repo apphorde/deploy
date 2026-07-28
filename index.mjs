@@ -114,6 +114,7 @@ async function resolveFile(url) {
 
     // Ensure folder structure matches clean schemas (or root dot rule)
     if (folder !== '.' && !SAFE_NAME_REGEX.test(folder)) {
+        console.log('Unsafe folder ' + folder);
         return null;
     }
 
@@ -121,20 +122,23 @@ async function resolveFile(url) {
 
     // Path Traversal Mitigation: Enforce absolute sub-tree isolation
     if (!baseFolder.startsWith(resolve(workingDir))) {
+        console.log('Unsafe folder path ' + folder);
         return null;
     }
 
     if (folder !== '.' && !existsSync(baseFolder)) {
+        console.log('Invalid folder ' + folder);
         return null;
     }
 
     let candidates = getCandidates(pathname);
-    const found = candidates
-        .map(c => join(baseFolder, c))
-        .find(f => f.startsWith(baseFolder) && existsSync(f) && statSync(f).isFile());
+    const all = candidates.map(c => join(baseFolder, c));
+    const found = all.find(f => f.startsWith(baseFolder) && existsSync(f) && statSync(f).isFile());
 
     if (!found) {
-        if (enableDebug) console.log('not found', folder, candidates);
+        if (enableDebug) {
+            console.log('Not found', folder, all);
+        }
         return null;
     }
 
