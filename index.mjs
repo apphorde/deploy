@@ -10,6 +10,7 @@ const authKey = process.env.API_KEY;
 const baseDomain = process.env.BASE_DOMAIN;
 const workingDir = process.env.DATA_PATH;
 const versionMarker = /^(.+)@(.+)$/g;
+const safeNameRegExp = /^(?:@[a-z0-9-_]+[/]?)?[a-z0-9-_]+$/i;
 const extensionCandidates = (process.env.EXTENSIONS || 'html,mjs,js,css').split(',').map(s => '.' + s.trim());
 const indexFiles = extensionCandidates.map(ext => 'index' + ext);
 const mimeTypes = {
@@ -23,12 +24,9 @@ const mimeTypes = {
     '.jpg': 'image/jpeg',
 };
 
-// Safe naming rule: alphanumeric, dash, underscore, or single npm-like scope indicator
-const SAFE_NAME_REGEX = /^(?:@[a-z0-9-_]+\/)?[a-z0-9-_]+$/i;
-
 createServer(async function (request, response) {
     response.on('finish', () => {
-        if (req.url === '/favicon.ico') return;
+        if (request.url === '/favicon.ico') return;
         console.log(`[${new Date().toISOString().slice(0, 19)}] [${res.statusCode}] ${req.method} ${req.url}`); 
     });
 
@@ -118,7 +116,7 @@ async function resolveFile(url) {
     if (folder.startsWith('at-')) folder = folder.replace('at-', '@');
 
     // Ensure folder structure matches clean schemas (or root dot rule)
-    if (folder !== '.' && !SAFE_NAME_REGEX.test(folder)) {
+    if (folder !== '.' && !safeNameRegExp.test(folder)) {
         console.log('Unsafe folder ' + folder);
         return null;
     }
@@ -213,7 +211,7 @@ function resolveName(request) {
             ? request.headers['x-deploy-name']
             : url.hostname.replace('.' + baseDomain, '').split('.')[0]) || '';
 
-    if (!nameUnresolved || !SAFE_NAME_REGEX.test(nameUnresolved)) {
+    if (!nameUnresolved || !safeNameRegExp.test(nameUnresolved)) {
         return '';
     }
 
