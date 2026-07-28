@@ -27,7 +27,7 @@ const mimeTypes = {
 createServer(async function (request, response) {
     response.on('finish', () => {
         if (request.url === '/favicon.ico') return;
-        console.log(`[${new Date().toISOString().slice(0, 19)}] [${response.statusCode}] ${response.method} ${response.url}`); 
+        console.log(`[${new Date().toISOString().slice(0, 19)}] [${response.statusCode}] ${request.method} ${request.url}`); 
     });
 
     try {
