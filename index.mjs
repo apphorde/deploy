@@ -27,6 +27,11 @@ const mimeTypes = {
 const SAFE_NAME_REGEX = /^(?:@[a-z0-9-_]+\/)?[a-z0-9-_]+$/i;
 
 createServer(async function (request, response) {
+    response.on('finish', () => {
+        if (req.url === '/favicon.ico') return;
+        console.log(`[${new Date().toISOString().slice(0, 19)}] [${res.statusCode}] ${req.method} ${req.url}`); 
+    });
+
     try {
         if (request.method === 'POST') {
             return onDeploy(request, response);
@@ -136,9 +141,6 @@ async function resolveFile(url) {
     const found = all.find(f => f.startsWith(baseFolder) && existsSync(f) && statSync(f).isFile());
 
     if (!found) {
-        if (enableDebug) {
-            console.log('Not found', folder, all);
-        }
         return null;
     }
 
