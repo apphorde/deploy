@@ -1,4 +1,6 @@
 {
+  "name": "@apphorde/deploy",
+  "version": "0.0.0",
   "type": "module",
   "main": "./index.mjs",
   "scripts": { "ci": "npm i" },
