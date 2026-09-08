@@ -31,6 +31,10 @@ if (!baseDomain || !workingDir || !Number.isSafeInteger(maxUploadBytes) || maxUp
 }
 
 createServer(async function (request, response) {
+    if (enableDebug) {
+        console.log(`[debug] Incoming request: ${request.method} ${request.url}`);
+    }
+
     response.on('finish', () => {
         if (request.url === '/favicon.ico') return;
         console.log(`[${new Date().toISOString().slice(0, 19)}] [${response.statusCode}] ${request.method} ${request.url}`); 
@@ -86,6 +90,10 @@ async function onFetch(request, response) {
 
     const url = new URL(request.url, 'http://' + host);
     const file = await resolveFile(url);
+
+    if (enableDebug) {
+        console.log(`[debug] File resolution: ${request.url} -> ${file || 'not found'}`);
+    }
 
     if (!file) {
         return notFound(response);
