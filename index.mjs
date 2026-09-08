@@ -75,7 +75,7 @@ function isAuthorized(request) {
 }
 
 async function onFetch(request, response) {
-    if (request.method === 'GET' && request.url === '/openapi.json') {
+    if (request.method === 'GET' && request.url === '/api') {
         return onOpenApi(response);
     }
 
@@ -409,7 +409,7 @@ function onOpenApi(response) {
         openapi: '3.1.0',
         info: { title: 'Static Assets Server API', version: '1.0.0' },
         paths: {
-            '/openapi.json': { get: { summary: 'Get this OpenAPI document', responses: { 200: { description: 'OpenAPI document' } } } },
+            '/api': { get: { summary: 'Get this OpenAPI document', responses: { 200: { description: 'OpenAPI document' } } } },
             '/{assetPath}': {
                 get: { summary: 'Fetch a static asset', parameters: [{ name: 'assetPath', in: 'path', required: true, schema: { type: 'string' } }], responses: { 200: { description: 'Asset content' }, 404: { description: 'Asset not found' } } },
                 head: { summary: 'Get static asset headers', responses: { 200: { description: 'Asset headers' }, 404: { description: 'Asset not found' } } },

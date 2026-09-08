@@ -6,7 +6,7 @@ It can also host libraries if you want to use ES Module imports: `import x from 
 
 ## API
 
-The machine-readable API description is available at `/openapi.json` on the server.
+The machine-readable API description is available at `/api` on the server.
 
 Download an entire site:
 
