@@ -6,6 +6,8 @@ It can also host libraries if you want to use ES Module imports: `import x from 
 
 ## API
 
+The machine-readable API description is available at `/openapi.json` on the server.
+
 Download an entire site:
 
 ```sh
@@ -39,6 +41,8 @@ Define your deploy key in the environment
 ```bash
 export DEPLOY_API_KEY=<your-key>
 ```
+
+The server requires `BASE_DOMAIN` and `DATA_PATH`. It uses the request `Host` header for deployment routing by default; set `TRUST_PROXY=true` only when a trusted reverse proxy overwrites `X-Forwarded-Host`. Deployments are limited to 100 MiB by default and can be adjusted with `MAX_UPLOAD_BYTES`.
 
 ## Usage
 

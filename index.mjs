@@ -1,14 +1,16 @@
 import { createServer } from 'node:http';
-import { mkdir, rm } from 'node:fs/promises';
+import { lstat, mkdir, readdir, rename, rm } from 'node:fs/promises';
 import { spawn, spawnSync } from 'node:child_process';
 import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { join, resolve, parse } from 'node:path';
-import { createReadStream, createWriteStream, existsSync, statSync } from 'node:fs';
+import { createReadStream, createWriteStream, existsSync, lstatSync, statSync } from 'node:fs';
 
 const enableDebug = !!process.env.DEBUG;
 const authKey = process.env.API_KEY;
-const baseDomain = process.env.BASE_DOMAIN;
-const workingDir = process.env.DATA_PATH;
+const baseDomain = process.env.BASE_DOMAIN?.toLowerCase().replace(/\.$/, '');
+const workingDir = process.env.DATA_PATH ? resolve(process.env.DATA_PATH) : '';
+const trustProxy = process.env.TRUST_PROXY === 'true';
+const maxUploadBytes = Number(process.env.MAX_UPLOAD_BYTES || 100 * 1024 * 1024);
 const versionMarker = /^(.+)@(.+)$/g;
 const safeNameRegExp = /^(?:@[a-z0-9-_]+[/]?)?[a-z0-9-_]+$/i;
 const extensionCandidates = (process.env.EXTENSIONS || 'html,mjs,js,css').split(',').map(s => '.' + s.trim());
@@ -23,6 +25,10 @@ const mimeTypes = {
     '.jpeg': 'image/jpeg',
     '.jpg': 'image/jpeg',
 };
+
+if (!baseDomain || !workingDir || !Number.isSafeInteger(maxUploadBytes) || maxUploadBytes <= 0) {
+    throw new Error('BASE_DOMAIN, DATA_PATH, and a positive MAX_UPLOAD_BYTES must be configured.');
+}
 
 createServer(async function (request, response) {
     response.on('finish', () => {
@@ -69,13 +75,16 @@ function isAuthorized(request) {
 }
 
 async function onFetch(request, response) {
-    const forwardedHost = request.headers['x-forwarded-host'] || '';
-    // Only accept domains matching our layout to minimize header-spoofing vectors
-    if (forwardedHost.includes('/') || forwardedHost.includes('\\')) {
+    if (request.method === 'GET' && request.url === '/openapi.json') {
+        return onOpenApi(response);
+    }
+
+    const host = getRequestHost(request);
+    if (!host) {
         return badRequest(response, 'Invalid host header');
     }
 
-    const url = new URL(request.url, 'http://' + forwardedHost);
+    const url = new URL(request.url, 'http://' + host);
     const file = await resolveFile(url);
 
     if (!file) {
@@ -88,8 +97,9 @@ async function onFetch(request, response) {
     }
 
     response.setHeader('Access-Control-Allow-Origin', '*');
-    response.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS, POST, HEAD');
+    response.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
     response.setHeader('Content-Type', mimeTypes[extension] || 'text/plain');
+    response.setHeader('X-Content-Type-Options', 'nosniff');
 
     if (request.method === 'HEAD') {
         return response.end();
@@ -121,10 +131,10 @@ async function resolveFile(url) {
         return null;
     }
 
-    const baseFolder = join(workingDir, folder);
+    const baseFolder = resolve(workingDir, folder);
 
     // Path Traversal Mitigation: Enforce absolute sub-tree isolation
-    if (!baseFolder.startsWith(resolve(workingDir))) {
+    if (!isWithinWorkingDir(baseFolder)) {
         console.log('Unsafe folder path ' + folder);
         return null;
     }
@@ -135,8 +145,8 @@ async function resolveFile(url) {
     }
 
     let candidates = getCandidates(pathname);
-    const all = candidates.map(c => join(baseFolder, c));
-    const found = all.find(f => f.startsWith(baseFolder) && existsSync(f) && statSync(f).isFile());
+    const all = candidates.map(c => resolve(baseFolder, c));
+    const found = all.find(f => isWithinDirectory(f, baseFolder) && existsSync(f) && statSync(f).isFile() && !isSymbolicLink(f));
 
     if (!found) {
         return null;
@@ -202,10 +212,10 @@ function getCandidates(pathname) {
 }
 
 function resolveName(request) {
-    const forwardedHost = request.headers['x-forwarded-host'] || 'localhost';
-    if (forwardedHost.includes('/') || forwardedHost.includes('\\')) return '';
+    const host = getRequestHost(request);
+    if (!host) return '';
 
-    const url = new URL(request.url, 'http://' + forwardedHost);
+    const url = new URL(request.url, 'http://' + host);
     const nameUnresolved =
         (url.hostname === baseDomain
             ? request.headers['x-deploy-name']
@@ -232,7 +242,7 @@ async function onBackup(request, response) {
     }
 
     const dir = join(workingDir, name);
-    if (!dir.startsWith(resolve(workingDir)) || !existsSync(dir) || !statSync(dir).isDirectory()) {
+    if (!isWithinWorkingDir(dir) || !existsSync(dir) || !statSync(dir).isDirectory() || isSymbolicLink(dir)) {
         notFound(response);
         return;
     }
@@ -263,7 +273,7 @@ async function onRemove(request, response) {
     if (!name) return badRequest(response, 'Invalid deployment name target');
 
     const dir = join(workingDir, name);
-    if (!dir.startsWith(resolve(workingDir)) || !existsSync(dir) || !statSync(dir).isDirectory()) {
+    if (!isWithinWorkingDir(dir) || !existsSync(dir) || !statSync(dir).isDirectory() || isSymbolicLink(dir)) {
         return notFound(response);
     }
 
@@ -279,30 +289,42 @@ async function onDeploy(request, response) {
     }
 
     let tmpFile;
+    let stagingDir;
 
     try {
         const randomName = randomUUID();
         const name = resolveName(request);
-        const targetDir = name ? join(workingDir, name) : join(workingDir, randomName);
+        const targetDir = resolve(workingDir, name || randomName);
 
-        if (!targetDir.startsWith(resolve(workingDir))) {
+        if (!isWithinWorkingDir(targetDir)) {
             throw new Error('Exploit blocked: Target path falls outside data root.');
-        }
-
-        if (existsSync(targetDir)) {
-            await rm(targetDir, { recursive: true, force: true });
         }
 
         tmpFile = join(workingDir, randomName + '.tgz');
 
-        await new Promise((r, j) => {
+        const contentLength = Number(request.headers['content-length']);
+        if (Number.isFinite(contentLength) && contentLength > maxUploadBytes) {
+            response.writeHead(413).end('Archive exceeds the upload limit.');
+            return;
+        }
+
+        await new Promise((resolveWrite, rejectWrite) => {
+            let uploadedBytes = 0;
             const s = createWriteStream(tmpFile);
-            s.on('close', r);
-            s.on('error', j);
+            request.on('data', chunk => {
+                uploadedBytes += chunk.length;
+                if (uploadedBytes > maxUploadBytes) {
+                    request.destroy(new Error('Archive exceeds the upload limit.'));
+                }
+            });
+            s.on('close', resolveWrite);
+            s.on('error', rejectWrite);
+            request.on('error', rejectWrite);
             request.pipe(s);
         });
 
-        await mkdir(targetDir, { recursive: true });
+        stagingDir = join(workingDir, randomName);
+        await mkdir(stagingDir, { recursive: true });
 
         // Hardened tar arguments: restricts extracting symlinks escaping targets, enforces permissions dropping
         const sh = spawnSync('tar', [
@@ -312,12 +334,21 @@ async function onDeploy(request, response) {
             '--no-same-owner',
             '--no-same-permissions',
             '--directory',
-            targetDir,
+            stagingDir,
         ]);
 
         if (sh.status !== 0) {
             throw new Error('Failed to extract package archive natively.');
         }
+
+        if (!(await containsOnlyFilesAndDirectories(stagingDir))) {
+            throw new Error('Archive contains unsupported file types.');
+        }
+
+        if (existsSync(targetDir)) {
+            await rm(targetDir, { recursive: true, force: true });
+        }
+        await rename(stagingDir, targetDir);
 
         response.writeHead(201).end(
             JSON.stringify({
@@ -326,12 +357,74 @@ async function onDeploy(request, response) {
             })
         );
     } catch (error) {
-        response.writeHead(400).end(JSON.stringify({ status: 'error', error: String(error.message || error) }));
+        const status = String(error.message || error).includes('upload limit') ? 413 : 400;
+        response.writeHead(status).end(JSON.stringify({ status: 'error', error: String(error.message || error) }));
     } finally {
         if (tmpFile && existsSync(tmpFile)) {
             await rm(tmpFile, { force: true });
         }
+        if (stagingDir && existsSync(stagingDir)) {
+            await rm(stagingDir, { recursive: true, force: true });
+        }
     }
+}
+
+function getRequestHost(request) {
+    const rawHost = trustProxy ? request.headers['x-forwarded-host'] : request.headers.host;
+    if (typeof rawHost !== 'string' || rawHost.includes(',') || rawHost.includes('/') || rawHost.includes('\\') || rawHost.includes('@')) {
+        return '';
+    }
+
+    try {
+        return new URL(`http://${rawHost}`).hostname.toLowerCase().replace(/\.$/, '');
+    } catch {
+        return '';
+    }
+}
+
+function isWithinDirectory(path, directory) {
+    return path === directory || path.startsWith(directory + '/');
+}
+
+function isWithinWorkingDir(path) {
+    return isWithinDirectory(path, workingDir);
+}
+
+function isSymbolicLink(path) {
+    return lstatSync(path).isSymbolicLink();
+}
+
+async function containsOnlyFilesAndDirectories(directory) {
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+        const path = join(directory, entry.name);
+        const status = await lstat(path);
+        if (status.isSymbolicLink() || !(status.isFile() || status.isDirectory()) || (status.isFile() && status.nlink > 1)) return false;
+        if (status.isDirectory() && !(await containsOnlyFilesAndDirectories(path))) return false;
+    }
+    return true;
+}
+
+function onOpenApi(response) {
+    const spec = {
+        openapi: '3.1.0',
+        info: { title: 'Static Assets Server API', version: '1.0.0' },
+        paths: {
+            '/openapi.json': { get: { summary: 'Get this OpenAPI document', responses: { 200: { description: 'OpenAPI document' } } } },
+            '/{assetPath}': {
+                get: { summary: 'Fetch a static asset', parameters: [{ name: 'assetPath', in: 'path', required: true, schema: { type: 'string' } }], responses: { 200: { description: 'Asset content' }, 404: { description: 'Asset not found' } } },
+                head: { summary: 'Get static asset headers', responses: { 200: { description: 'Asset headers' }, 404: { description: 'Asset not found' } } },
+            },
+            '/': {
+                get: { summary: 'Fetch the root static asset', responses: { 200: { description: 'Asset content' }, 404: { description: 'Asset not found' } } },
+                head: { summary: 'Get root static asset headers', responses: { 200: { description: 'Asset headers' }, 404: { description: 'Asset not found' } } },
+                post: { summary: 'Deploy a gzip tar archive', security: [{ ApiKeyAuth: [] }], responses: { 201: { description: 'Deployment created' }, 400: { description: 'Invalid archive or name' }, 413: { description: 'Archive too large' } } },
+                delete: { summary: 'Delete a deployment', security: [{ ApiKeyAuth: [] }], responses: { 202: { description: 'Deployment deleted' }, 404: { description: 'Deployment not found' } } },
+                copy: { summary: 'Download a deployment as a gzip tar archive', security: [{ ApiKeyAuth: [] }], responses: { 200: { description: 'Deployment archive' }, 404: { description: 'Deployment not found' } } },
+            },
+        },
+        components: { securitySchemes: { ApiKeyAuth: { type: 'apiKey', in: 'header', name: 'Authorization' } } },
+    };
+    response.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' }).end(JSON.stringify(spec));
 }
 
 function notFound(response) {
